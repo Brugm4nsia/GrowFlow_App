@@ -1,0 +1,28 @@
+# In Datei: .gitignore
+# VOLLSTÄNDIGER CODE
+
+# Abhängigkeiten
+/node_modules
+
+# Build-Ordner
+/dist
+
+# Vite Caching
+.vite/
+
+# Lock-Dateien (je nach Paketmanager)
+package-lock.json
+yarn.lock
+
+# Lokale Umgebungs-Variablen (SEHR WICHTIG)
+.env
+.env.local
+.env.*.local
+
+# IDE-Ordner
+.vscode/
+.idea/
+
+# OS-Dateien
+.DS_Store
+Thumbs.db

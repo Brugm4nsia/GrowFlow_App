@@ -1,0 +1,145 @@
+// In Datei: src/pages/SaeurenPage.tsx
+// VOLLSTÄNDIGER CODE
+
+import { 
+  Box, 
+  Button, 
+  Heading, 
+  VStack, 
+  Text, 
+  useDisclosure, 
+  Flex,
+  Spacer,
+  IconButton,
+  Tag,
+  HStack, // NEU
+} from '@chakra-ui/react';
+import { FiPlus, FiChevronLeft, FiEdit, FiTrash } from 'react-icons/fi'; // NEU
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db';
+import { ISaeureBase } from '../types';
+import { SaeureBaseErstellenModal } from '../components/Einstellungen/SaeureBaseErstellenModal';
+import { Link as RouterLink } from 'react-router-dom';
+import { useState } from 'react'; // NEU
+// NEU: Importiere das Löschen-Modal
+import { SaeureBaseLoeschenModal } from '../components/Einstellungen/SaeureBaseLoeschenModal';
+
+// Karte zur Anzeige eines Regulators
+function SaeureBaseCard({ 
+  item,
+  onEdit, // NEU
+  onDelete // NEU
+}: { 
+  item: ISaeureBase,
+  onEdit: () => void,
+  onDelete: () => void,
+}) {
+  const element = Object.keys(item.element_prozent)[0] || "N/A";
+  const prozent = item.element_prozent[element] || 0;
+  // NEU: Zeige das berechnete Ergebnis
+  const reinststoffKey = Object.keys(item.reinststoff_mg_ml)[0];
+  const reinststoffWert = item.reinststoff_mg_ml[reinststoffKey] || 0;
+
+  return (
+    <Box p={4} bg="gray.800" borderRadius="md" w="100%">
+      <Flex align="center">
+        <Box flex={1}>
+          <Heading size="md">{item.name}</Heading>
+          <Text color="gray.400">{element.replace('_prozent', '')}: {prozent}% | Dichte: {item.dichte}</Text>
+          {/* NEU: Zeige Ergebnis */}
+          {reinststoffKey && (
+            <Text color="green.300" fontWeight="bold">
+              {reinststoffKey}: {reinststoffWert.toFixed(2)} mg/ml
+            </Text>
+          )}
+        </Box>
+        <Tag colorScheme={item.typ === 'saeure' ? 'red' : 'blue'} mr={4}>
+          {item.typ === 'saeure' ? 'Säure' : 'Base'}
+        </Tag>
+        {/* NEU: Bearbeiten/Löschen-Buttons */}
+        <HStack>
+          <IconButton icon={<FiEdit />} aria-label="Bearbeiten" variant="ghost" onClick={onEdit} />
+          <IconButton icon={<FiTrash />} aria-label="Löschen" variant="ghost" colorScheme="red" onClick={onDelete} />
+        </HStack>
+      </Flex>
+    </Box>
+  );
+}
+
+export function SaeurenPage() {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  
+  const [itemToEdit, setItemToEdit] = useState<ISaeureBase | undefined>(undefined);
+  const [itemToDelete, setItemToDelete] = useState<ISaeureBase | undefined>(undefined);
+
+  const saeurenBasen = useLiveQuery(() => db.saeurenBasen.toArray(), []);
+
+  const handleOpenNew = () => {
+    setItemToEdit(undefined);
+    onOpen();
+  };
+
+  const handleOpenEdit = (item: ISaeureBase) => {
+    setItemToEdit(item);
+    onOpen();
+  };
+  
+  const handleOpenDelete = (item: ISaeureBase) => {
+    setItemToDelete(item);
+    onDeleteOpen();
+  };
+
+  return (
+    <Box p={4}>
+      <Flex align="center" mb={4}>
+        <IconButton
+          as={RouterLink}
+          to="/einstellungen"
+          aria-label="Zurück zu Mehr"
+          icon={<FiChevronLeft />}
+          variant="ghost"
+          mr={2}
+        />
+        <Heading>Säuren & Basen</Heading>
+        <Spacer />
+        <Button 
+          leftIcon={<FiPlus />} 
+          colorScheme="green" 
+          onClick={handleOpenNew}
+        >
+          Neu
+        </Button>
+      </Flex>
+
+      <VStack spacing={4}>
+        {saeurenBasen && saeurenBasen.length > 0 ? (
+          saeurenBasen.map(s => (
+            <SaeureBaseCard 
+              key={s.id} 
+              item={s}
+              onEdit={() => handleOpenEdit(s)}
+              onDelete={() => handleOpenDelete(s)}
+            />
+          ))
+        ) : (
+          <Text color="gray.500">Noch keine Regulatoren erstellt.</Text>
+        )}
+      </VStack>
+
+      <SaeureBaseErstellenModal 
+        isOpen={isOpen} 
+        onClose={onClose} 
+        itemToEdit={itemToEdit}
+      />
+      
+      {itemToDelete && (
+        <SaeureBaseLoeschenModal
+          isOpen={isDeleteOpen}
+          onClose={onDeleteClose}
+          itemToDelete={itemToDelete}
+        />
+      )}
+    </Box>
+  );
+}
