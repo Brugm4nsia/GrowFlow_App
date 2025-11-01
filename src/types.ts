@@ -15,9 +15,11 @@ export type PflanzenStatus = 'aktiv' | 'tot' | 'geoerntet';
 export type PumpenEinheit = 'h' | 'min' | 'sek';
 export type ZutatTyp = 'naehrsalz' | 'stammlosung' | 'saeure';
 
-// === NEUE TYPEN FÜR DIE DROPDOWNS ===
+// === HIER IST DER FIX (FEHLER 1 & 2) ===
+// Diese Typen (aus deiner Bug-Liste) haben gefehlt
 export type TrainingTyp = 'lst' | 'fim' | 'scrog' | 'supercropping' | 'topping';
 export type BeschneidenTyp = 'topping' | 'fim' | 'entlaubung' | 'lollipopping' | 'untere_aeste';
+// === ENDE FIX ===
 
 // Globaler Typ für Rechner-Ergebnisse
 export type EndloesungErgebnis = {
@@ -55,7 +57,7 @@ export interface IAktion {
     mengeL?: number;
     zutaten?: { id: number; menge: number; typ: ZutatTyp; }[];
     
-    // === HIER IST DIE KORREKTUR ===
+    // Diese Zeilen funktionieren jetzt, da die Typen oben definiert sind
     trainingTyp?: TrainingTyp;
     beschneidenTyp?: BeschneidenTyp;
     
@@ -99,7 +101,7 @@ export interface IStammlosung {
 export interface IWasserprofil {
   id?: number; name: string; beschreibung?: string;
   naehrstoffe_mg_l: {
-    NO3?: number; NH4?: number; P?: number; K: number; Ca?: number;
+    NO3?: number; NH4?: number; P?: number; K?: number; Ca?: number;
     Mg?: number; SO4?: number; Na?: number; Cl?: number; Fe?: number;
     Mn?: number; Cu?: number; Zn?: number; B?: number; Mo?: number; Si?: number;
   };

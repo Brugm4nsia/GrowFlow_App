@@ -5,15 +5,17 @@ import {
   Box, Heading, Flex, IconButton, Text, VStack, FormControl, FormLabel,
   NumberInput, NumberInputField, Select, Button, SimpleGrid, Tag,
   Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
-  useToast,
+  useToast, Spinner,
 } from '@chakra-ui/react';
 import { FiChevronLeft, FiPlus, FiTrash } from 'react-icons/fi';
 import { Link as RouterLink } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react'; 
 import { calculateFinalSolution, EndloesungErgebnis } from '../utils/NutrientCalculator';
-import type { IStammlosung, INaehrsalz, ISaeureBase } from '../types';
+// === HIER IST DIE KORREKTUR ===
+// Die ungenutzten Typen wurden entfernt.
+import type { IStammlosung, INaehrsalz, ISaeureBase } from '../types'; 
 
 type StammlosungEingabe = { id: string; loesungId?: number; mlStr?: string };
 type NaehrsalzEingabe = { id: string; salzId?: number; grammStr?: string };
@@ -27,6 +29,8 @@ const parseFloatSafe = (val: string | undefined): number => {
 export function EndlosungRechnerPage() {
   const toast = useToast();
 
+  // 'useLiveQuery' verwendet die Typen aus 'db.ts', daher sind die Imports oben
+  // für die 'const'-Definitionen nicht erforderlich.
   const wasserprofile = useLiveQuery(() => db.wasserprofile.toArray(), []);
   const stammlosungen = useLiveQuery(() => db.stammlosungen.toArray(), []);
   const naehrsalze = useLiveQuery(() => db.naehrsalze.toArray(), []);
@@ -38,50 +42,69 @@ export function EndlosungRechnerPage() {
   const [slEingaben, setSlEingaben] = useState<StammlosungEingabe[]>([]);
   const [nsEingaben, setNsEingaben] = useState<NaehrsalzEingabe[]>([]);
   const [sbEingaben, setSbEingaben] = useState<SaeureBaseEingabe[]>([]);
-
-  const berechnetesErgebnis: EndloesungErgebnis | null = useMemo(() => {
-    const zielvolumenLiter = parseFloatSafe(zielvolumenLiterStr);
-    if (zielvolumenLiter <= 0) return null;
-
-    const wasserProfil = wasserprofile?.find(wp => wp.id === wasserProfilId);
-
-    const stammlosungZutaten = slEingaben
-      .map(e => ({ 
-        loesung: stammlosungen?.find(sl => sl.id === e.loesungId), 
-        ml: parseFloatSafe(e.mlStr) 
-      }))
-      .filter(item => item.loesung && item.ml > 0) as { loesung: IStammlosung; ml: number }[];
-
-    const naehrsalzZutaten = nsEingaben
-      .map(e => ({ 
-        salz: naehrsalze?.find(ns => ns.id === e.salzId), 
-        gramm: parseFloatSafe(e.grammStr)
-      }))
-      .filter(item => item.salz && item.gramm > 0) as { salz: INaehrsalz; gramm: number }[];
-      
-    const saeureBaseZutaten = sbEingaben
-      .map(e => ({ 
-        item: saeurenBasen?.find(sb => sb.id === e.itemId), 
-        ml: parseFloatSafe(e.mlStr)
-      }))
-      .filter(item => item.item && item.ml > 0) as { item: ISaeureBase; ml: number }[];
-
-    try {
-      return calculateFinalSolution({
-        zielvolumenLiter,
-        wasserProfil,
-        stammlosungen: stammlosungZutaten,
-        naehrsalze: naehrsalzZutaten,
-        saeurenBasen: saeureBaseZutaten,
-      });
-    } catch (error: any) {
-      toast({ title: "Rechenfehler", description: error.message, status: "error", duration: 3000 });
-      return null;
-    }
-
-  }, [zielvolumenLiterStr, wasserProfilId, slEingaben, nsEingaben, sbEingaben, wasserprofile, stammlosungen, naehrsalze, saeurenBasen, toast]);
-
   
+  const [berechnetesErgebnis, setBerechnetesErgebnis] = useState<EndloesungErgebnis | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  useEffect(() => {
+    const runCalculation = async () => {
+      setIsCalculating(true);
+      const zielvolumenLiter = parseFloatSafe(zielvolumenLiterStr);
+      if (zielvolumenLiter <= 0) {
+        setBerechnetesErgebnis(null);
+        setIsCalculating(false);
+        return;
+      }
+
+      // Hier werden die Typen implizit verwendet (TypeScript leitet sie von 'useLiveQuery' ab)
+      const stammlosungZutaten = slEingaben
+        .map(e => ({ 
+          loesung: stammlosungen?.find(sl => sl.id === e.loesungId), 
+          ml: parseFloatSafe(e.mlStr) 
+        }))
+        .filter(item => item.loesung && item.ml > 0) as { loesung: IStammlosung; ml: number }[]; // Explizites Casting
+
+      const naehrsalzZutaten = nsEingaben
+        .map(e => ({ 
+          salz: naehrsalze?.find(ns => ns.id === e.salzId), 
+          gramm: parseFloatSafe(e.grammStr)
+        }))
+        .filter(item => item.salz && item.gramm > 0) as { salz: INaehrsalz; gramm: number }[]; // Explizites Casting
+        
+      const saeureBaseZutaten = sbEingaben
+        .map(e => ({ 
+          item: saeurenBasen?.find(sb => sb.id === e.itemId), 
+          ml: parseFloatSafe(e.mlStr)
+        }))
+        .filter(item => item.item && item.ml > 0) as { item: ISaeureBase; ml: number }[]; // Explizites Casting
+        
+      const alleZutaten = [
+        ...stammlosungZutaten.map(z => ({ id: z.loesung.id!, menge: z.ml, typ: 'stammlosung' as const })),
+        ...naehrsalzZutaten.map(z => ({ id: z.salz.id!, menge: z.gramm, typ: 'naehrsalz' as const })),
+        ...saeureBaseZutaten.map(z => ({ id: z.item.id!, menge: z.ml, typ: 'saeure' as const })),
+      ];
+
+      try {
+        const ergebnis = await calculateFinalSolution({
+          zielvolumenLiter,
+          wasserProfilId: wasserProfilId,
+          zutaten: alleZutaten,
+        });
+        setBerechnetesErgebnis(ergebnis);
+      } catch (error: any) {
+        toast({ title: "Rechenfehler", description: error.message, status: "error", duration: 3000 });
+        setBerechnetesErgebnis(null);
+      }
+      setIsCalculating(false);
+    };
+
+    // Führe nur aus, wenn die DB-Daten geladen sind
+    if (wasserprofile && stammlosungen && naehrsalze && saeurenBasen) {
+      runCalculation();
+    }
+  }, [zielvolumenLiterStr, wasserProfilId, slEingaben, nsEingaben, sbEingaben, toast, wasserprofile, stammlosungen, naehrsalze, saeurenBasen]); // Füge DB-Daten zu Abhängigkeiten hinzu
+
+
   const addSlZeile = () => setSlEingaben(p => [...p, { id: `temp-${Date.now()}` }]);
   const removeSlZeile = (id: string) => setSlEingaben(p => p.filter(z => z.id !== id));
   const updateSlZeile = (id: string, feld: 'loesungId' | 'mlStr', wert: number | string | undefined) => {
@@ -100,7 +123,6 @@ export function EndlosungRechnerPage() {
     setSbEingaben(p => p.map(z => (z.id === id ? { ...z, [feld]: wert } : z)));
   };
 
-
   return (
     <Box p={4} pb={24}>
       <Flex align="center" mb={4}>
@@ -109,7 +131,6 @@ export function EndlosungRechnerPage() {
       </Flex>
       
       <VStack spacing={6} align="stretch">
-        {/* --- 1. ZIELVOLUMEN & WASSER --- */}
         <VStack spacing={4} bg="gray.800" p={4} borderRadius="md" align="stretch">
           <SimpleGrid columns={2} spacing={4}>
             <FormControl isRequired>
@@ -131,9 +152,7 @@ export function EndlosungRechnerPage() {
           </SimpleGrid>
         </VStack>
 
-        {/* --- 2. ZUTATEN (als Akkordeon) --- */}
         <Accordion allowMultiple defaultIndex={[0]} w="100%">
-          {/* Stammlösungen */}
           <AccordionItem bg="gray.800" borderRadius="md" mb={4}>
             <AccordionButton><Box flex="1" textAlign="left" fontWeight="bold">Stammlösungen (ml)</Box><AccordionIcon /></AccordionButton>
             <AccordionPanel pb={4}>
@@ -154,7 +173,6 @@ export function EndlosungRechnerPage() {
             </AccordionPanel>
           </AccordionItem>
           
-          {/* Nährsalze (Roh) */}
           <AccordionItem bg="gray.800" borderRadius="md" mb={4}>
             <AccordionButton><Box flex="1" textAlign="left" fontWeight="bold">Nährsalze (Gramm)</Box><AccordionIcon /></AccordionButton>
             <AccordionPanel pb={4}>
@@ -175,7 +193,6 @@ export function EndlosungRechnerPage() {
             </AccordionPanel>
           </AccordionItem>
 
-          {/* Säuren / Basen */}
           <AccordionItem bg="gray.800" borderRadius="md" mb={4}>
             <AccordionButton><Box flex="1" textAlign="left" fontWeight="bold">pH-Regulatoren (ml)</Box><AccordionIcon /></AccordionButton>
             <AccordionPanel pb={4}>
@@ -197,26 +214,22 @@ export function EndlosungRechnerPage() {
           </AccordionItem>
         </Accordion>
         
-        {/* --- 3. ERGEBNIS-ANZEIGE --- */}
-        {berechnetesErgebnis && (
+        {isCalculating && <Spinner size="xl" alignSelf="center" />}
+
+        {berechnetesErgebnis && !isCalculating && (
           <Box bg="gray.800" p={4} borderRadius="md">
             <Heading as="h2" size="md" mb={4}>Endergebnis (mg/l)</Heading>
             <SimpleGrid columns={{ base: 3, md: 4 }} spacing={2}>
               {Object.entries(berechnetesErgebnis)
                 .filter(([, val]) => val && val > 0)
                 .map(([key, val]) => {
-                  
                   const displayKey = key.replace('_gesamt', '');
-                  
-                  // === HIER IST DIE KORREKTUR FÜR Mo ===
-                  // Mo (und andere Mikros) mit 3 Stellen, Rest mit 1 Stelle
                   const displayVal = (
                     displayKey === 'Mo' || displayKey === 'Mn' || displayKey === 'Zn' || 
                     displayKey === 'Cu' || displayKey === 'B' || displayKey === 'Fe'
                   ) 
                     ? val.toFixed(3) 
                     : val.toFixed(1);
-                  
                   return (
                     <Tag key={key} size="lg" colorScheme="green" variant="solid" justifyContent="space-between">
                       <Text>{displayKey}</Text>

@@ -1,5 +1,5 @@
 // In Datei: src/components/Dashboard/PflanzenProtokollModal.tsx
-// VOLLSTÄNDIGER CODE (mit Dezimal-Fix)
+// VOLLSTÄNDIGER CODE
 
 import {
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton,
@@ -23,7 +23,6 @@ const getLokalesDatumString = (datum: Date): string => {
   return `${jahr}-${monat}-${tag}T${stunden}:${minuten}`;
 };
 
-// Helper zum sicheren Parsen von Komma/Punkt-Strings
 const parseFloatSafe = (val: string | undefined): number | undefined => {
   if (!val) return undefined;
   const num = parseFloat(val.replace(',', '.'));
@@ -38,15 +37,14 @@ interface PflanzenProtokollModalProps {
   logToEdit?: ILog;
 }
 
-// Definition der Felder und ihrer Präzision
 const messwertFelder: { key: keyof MesswertEingabe; label: string; precision: number; step: number; }[] = [
   { key: 'hoehe', label: 'Höhe (cm)', precision: 0, step: 1 },
   { key: 'tds_vorher', label: 'TDS - Vorher (ppm)', precision: 0, step: 10 },
   { key: 'tds_nachher', label: 'TDS - Nachher (ppm)', precision: 0, step: 10 },
-  { key: 'ph_vorher', label: 'pH - Vorher', precision: 1, step: 0.1 }, // FIX
-  { key: 'ph_nachher', label: 'pH - Nachher', precision: 1, step: 0.1 }, // FIX
-  { key: 'ec_vorher', label: 'EC - Vorher', precision: 2, step: 0.1 }, // FIX
-  { key: 'ec_nachher', label: 'EC - Nachher', precision: 2, step: 0.1 }, // FIX
+  { key: 'ph_vorher', label: 'pH - Vorher', precision: 1, step: 0.1 },
+  { key: 'ph_nachher', label: 'pH - Nachher', precision: 1, step: 0.1 },
+  { key: 'ec_vorher', label: 'EC - Vorher', precision: 2, step: 0.1 },
+  { key: 'ec_nachher', label: 'EC - Nachher', precision: 2, step: 0.1 },
   { key: 'wassertemperatur', label: 'Wassertemperatur (°C)', precision: 1, step: 0.5 },
   { key: 'ppfd_pflanze', label: 'PPFD (an Pflanze)', precision: 0, step: 10 },
 ];
@@ -62,9 +60,6 @@ export function PflanzenProtokollModal({ isOpen, onClose, logToEdit }: PflanzenP
   const [notiz, setNotiz] = useState("");
   const [zielIDs, setZielIDs] = useState<string[]>([]);
   const [aktiveMesswerte, setAktiveMesswerte] = useState<string[]>([]);
-  
-  // === FIX FÜR BUG 1 (Dezimalstellen) ===
-  // Wir speichern die Eingaben als Strings
   const [messwertStrings, setMesswertStrings] = useState<{[key: string]: string}>({});
   
   useEffect(() => {
@@ -72,40 +67,30 @@ export function PflanzenProtokollModal({ isOpen, onClose, logToEdit }: PflanzenP
       const pflanzenZiele = logToEdit.zielPflanzenIds.map((id: number) => `p-${id}`);
       const umgebungZiele = logToEdit.zielUmgebungIds.map((id: number) => `u-${id}`);
       const aktiveWerte = logToEdit.messwerte ? Object.keys(logToEdit.messwerte) : [];
-
-      // Konvertiere Zahlen aus DB in Strings für UI
+      
       const strings: {[key: string]: string} = {};
       if (logToEdit.messwerte) {
         for (const key in logToEdit.messwerte) {
           const k = key as keyof MesswertEingabe;
-          strings[k] = logToEdit.messwerte[k] ? String(logToEdit.messwerte[k]) : "";
+          if (logToEdit.messwerte[k] !== undefined) {
+            strings[k] = String(logToEdit.messwerte[k]);
+          }
         }
       }
-
       setDatum(getLokalesDatumString(logToEdit.datum));
       setNotiz(logToEdit.notiz || "");
       setZielIDs([...pflanzenZiele, ...umgebungZiele]);
-      setMesswertStrings(strings); // Lade String-State
+      setMesswertStrings(strings);
       setAktiveMesswerte(aktiveWerte);
     } else {
       resetFormular();
     }
   }, [logToEdit, isEditMode, isOpen]);
   
-
-  const handleZielChange = (neueWerte: (string | number)[]) => {
-    setZielIDs(neueWerte.map(val => String(val)));
-  };
-  const handleAktiveMesswerteChange = (neueWerte: (string | number)[]) => {
-     setAktiveMesswerte(neueWerte.map(val => String(val)));
-  };
-  
-  // Speichere die String-Eingabe
-  const handleMesswertChange = (key: keyof MesswertEingabe, valueAsString: string) => {
-    setMesswertStrings(prev => ({
-      ...prev,
-      [key]: valueAsString,
-    }));
+  const handleZielChange = (neueWerte: (string | number)[]) => setZielIDs(neueWerte.map(val => String(val)));
+  const handleAktiveMesswerteChange = (neueWerte: (string | number)[]) => setAktiveMesswerte(neueWerte.map(val => String(val)));
+  const handleMesswertChange = (key: string, valueAsString: string) => {
+    setMesswertStrings(prev => ({ ...prev, [key]: valueAsString }));
   };
   
   const handleSave = async () => {
@@ -118,13 +103,16 @@ export function PflanzenProtokollModal({ isOpen, onClose, logToEdit }: PflanzenP
     });
     if (zielPflanzenIds.length === 0 && zielUmgebungIds.length === 0) { /* ... */ return; }
     
-    // Konvertiere Strings zurück in Zahlen für die DB
+    // === HIER IST DER FIX (Fehler 1) ===
     const finaleMesswerte: MesswertEingabe = {};
     aktiveMesswerte.forEach(key => {
-      const k = key as keyof MesswertEingabe;
+      // (Wir haben hier keine String-Felder wie '...einheit', also ist der 'any'-Fix
+      // nicht nötig, aber wir müssen den 'key' korrekt typisieren)
+      const k = key as keyof MesswertEingabe; 
       const valNum = parseFloatSafe(messwertStrings[k]);
       if (valNum !== undefined && valNum >= 0) {
-        finaleMesswerte[k] = valNum;
+        // TypeScript daran hindern, sich über 'hoehe' vs 'pumpenintervall_on_einheit' zu beschweren
+        (finaleMesswerte as any)[k] = valNum; 
       }
     });
 
@@ -139,7 +127,7 @@ export function PflanzenProtokollModal({ isOpen, onClose, logToEdit }: PflanzenP
 
     try {
       if (isEditMode) {
-        await db.logs.put({ id: logToEdit.id!, ...logDaten });
+        await db.logs.put({ id: logToEdit!.id!, ...logDaten });
         toast({ title: "Protokoll aktualisiert", status: "success", duration: 2000 });
       } else {
         await db.logs.add(logDaten as ILog);
@@ -158,7 +146,7 @@ export function PflanzenProtokollModal({ isOpen, onClose, logToEdit }: PflanzenP
     setNotiz("");
     setZielIDs([]);
     setAktiveMesswerte([]);
-    setMesswertStrings({}); // String-State zurücksetzen
+    setMesswertStrings({});
   };
   const handleClose = () => {
     resetFormular();
@@ -173,7 +161,7 @@ export function PflanzenProtokollModal({ isOpen, onClose, logToEdit }: PflanzenP
         <ModalCloseButton />
         <ModalBody overflowY="auto">
           <VStack spacing={4} align="stretch" pb={24}>
-            
+            {/* ... (Restlicher JSX unverändert) ... */}
             <FormControl isRequired>
               <FormLabel>Für welche Ziele?</FormLabel>
               <CheckboxGroup colorScheme="green" value={zielIDs} onChange={handleZielChange}>
@@ -227,12 +215,11 @@ export function PflanzenProtokollModal({ isOpen, onClose, logToEdit }: PflanzenP
                     .map(feld => (
                       <FormControl key={feld.key}>
                         <FormLabel>{feld.label}</FormLabel>
-                        {/* === FIX FÜR BUG 1 (Dezimalstellen) === */}
                         <NumberInput 
                           value={messwertStrings[feld.key] || ""}
                           onChange={(valStr) => handleMesswertChange(feld.key, valStr)}
-                          precision={feld.precision} // Dynamische Präzision
-                          step={feld.step}         // Dynamischer Schritt
+                          precision={feld.precision}
+                          step={feld.step}
                         >
                           <NumberInputField />
                         </NumberInput>
