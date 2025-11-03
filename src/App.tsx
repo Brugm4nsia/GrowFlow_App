@@ -1,5 +1,5 @@
 // In Datei: src/App.tsx
-// VOLLSTÄNDIGER CODE
+// VOLLSTÄNDIGER CODE (zur Überprüfung)
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/Navigation/MainLayout';
@@ -14,7 +14,8 @@ import { SaeurenPage } from './pages/SaeurenPage';
 import { PflanzeDetailPage } from './pages/PflanzeDetailPage';
 import { StammlosungenPage } from './pages/StammlosungenPage';
 import { StammlosungRechnerPage } from './pages/StammlosungRechnerPage';
-import { EndlosungRechnerPage } from './pages/EndlosungRechnerPage';
+// Dieser Import funktioniert nach der Umbenennung
+import { NaehrlosungRechnerPage } from './pages/NaehrlosungRechnerPage'; 
 import { NaehrsalzDetailPage } from './pages/NaehrsalzDetailPage';
 
 export function App() {
@@ -39,11 +40,11 @@ export function App() {
         <Route path="pflanze/:pflanzenId" element={<PflanzeDetailPage />} />
         <Route path="stammlosungen" element={<StammlosungenPage />} />
         
-        {/* NEUE & GEÄNDERTE ROUTEN FÜR DEN RECHNER */}
-        <Route path="stammlosung-rechner" element={<StammlosungRechnerPage />} /> {/* Für "Neu" */}
-        <Route path="stammlosung-rechner/:rezeptId" element={<StammlosungRechnerPage />} /> {/* Für "Bearbeiten" */}
+        <Route path="stammlosung-rechner" element={<StammlosungRechnerPage />} />
+        <Route path="stammlosung-rechner/:rezeptId" element={<StammlosungRechnerPage />} />
 
-        <Route path="endlosung-rechner" element={<EndlosungRechnerPage />} />
+        {/* Diese Route passt jetzt zum Import */}
+        <Route path="naehrlosung-rechner" element={<NaehrlosungRechnerPage />} />
       </Routes>
     </BrowserRouter>
   );

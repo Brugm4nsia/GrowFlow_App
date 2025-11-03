@@ -1,4 +1,4 @@
-// In Datei: src/pages/EndlosungRechnerPage.tsx
+// In Datei: src/pages/NaehrlosungRechnerPage.tsx
 // VOLLSTÄNDIGER CODE
 
 import { 
@@ -13,9 +13,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { useState, useEffect } from 'react'; 
 import { calculateFinalSolution, EndloesungErgebnis } from '../utils/NutrientCalculator';
-// === HIER IST DIE KORREKTUR ===
-// Die ungenutzten Typen wurden entfernt.
-import type { IStammlosung, INaehrsalz, ISaeureBase } from '../types'; 
+import type { ZutatTyp } from '../types';
 
 type StammlosungEingabe = { id: string; loesungId?: number; mlStr?: string };
 type NaehrsalzEingabe = { id: string; salzId?: number; grammStr?: string };
@@ -26,11 +24,10 @@ const parseFloatSafe = (val: string | undefined): number => {
   return parseFloat(val.replace(',', '.')) || 0;
 }
 
-export function EndlosungRechnerPage() {
+// === HIER IST DIE ÄNDERUNG (Funktionsname) ===
+export function NaehrlosungRechnerPage() {
   const toast = useToast();
 
-  // 'useLiveQuery' verwendet die Typen aus 'db.ts', daher sind die Imports oben
-  // für die 'const'-Definitionen nicht erforderlich.
   const wasserprofile = useLiveQuery(() => db.wasserprofile.toArray(), []);
   const stammlosungen = useLiveQuery(() => db.stammlosungen.toArray(), []);
   const naehrsalze = useLiveQuery(() => db.naehrsalze.toArray(), []);
@@ -55,34 +52,18 @@ export function EndlosungRechnerPage() {
         setIsCalculating(false);
         return;
       }
-
-      // Hier werden die Typen implizit verwendet (TypeScript leitet sie von 'useLiveQuery' ab)
+      
       const stammlosungZutaten = slEingaben
-        .map(e => ({ 
-          loesung: stammlosungen?.find(sl => sl.id === e.loesungId), 
-          ml: parseFloatSafe(e.mlStr) 
-        }))
-        .filter(item => item.loesung && item.ml > 0) as { loesung: IStammlosung; ml: number }[]; // Explizites Casting
-
+        .map(e => ({ id: e.loesungId!, menge: parseFloatSafe(e.mlStr), typ: 'stammlosung' as ZutatTyp }))
+        .filter(item => item.id && item.menge > 0);
       const naehrsalzZutaten = nsEingaben
-        .map(e => ({ 
-          salz: naehrsalze?.find(ns => ns.id === e.salzId), 
-          gramm: parseFloatSafe(e.grammStr)
-        }))
-        .filter(item => item.salz && item.gramm > 0) as { salz: INaehrsalz; gramm: number }[]; // Explizites Casting
-        
+        .map(e => ({ id: e.salzId!, menge: parseFloatSafe(e.grammStr), typ: 'naehrsalz' as ZutatTyp }))
+        .filter(item => item.id && item.menge > 0);
       const saeureBaseZutaten = sbEingaben
-        .map(e => ({ 
-          item: saeurenBasen?.find(sb => sb.id === e.itemId), 
-          ml: parseFloatSafe(e.mlStr)
-        }))
-        .filter(item => item.item && item.ml > 0) as { item: ISaeureBase; ml: number }[]; // Explizites Casting
+        .map(e => ({ id: e.itemId!, menge: parseFloatSafe(e.mlStr), typ: 'saeure' as ZutatTyp }))
+        .filter(item => item.id && item.menge > 0);
         
-      const alleZutaten = [
-        ...stammlosungZutaten.map(z => ({ id: z.loesung.id!, menge: z.ml, typ: 'stammlosung' as const })),
-        ...naehrsalzZutaten.map(z => ({ id: z.salz.id!, menge: z.gramm, typ: 'naehrsalz' as const })),
-        ...saeureBaseZutaten.map(z => ({ id: z.item.id!, menge: z.ml, typ: 'saeure' as const })),
-      ];
+      const alleZutaten = [ ...stammlosungZutaten, ...naehrsalzZutaten, ...saeureBaseZutaten ];
 
       try {
         const ergebnis = await calculateFinalSolution({
@@ -97,26 +78,24 @@ export function EndlosungRechnerPage() {
       }
       setIsCalculating(false);
     };
-
-    // Führe nur aus, wenn die DB-Daten geladen sind
+    
     if (wasserprofile && stammlosungen && naehrsalze && saeurenBasen) {
       runCalculation();
     }
-  }, [zielvolumenLiterStr, wasserProfilId, slEingaben, nsEingaben, sbEingaben, toast, wasserprofile, stammlosungen, naehrsalze, saeurenBasen]); // Füge DB-Daten zu Abhängigkeiten hinzu
+  }, [zielvolumenLiterStr, wasserProfilId, slEingaben, nsEingaben, sbEingaben, toast, wasserprofile, stammlosungen, naehrsalze, saeurenBasen]);
 
 
+  // (Handler-Funktionen unverändert)
   const addSlZeile = () => setSlEingaben(p => [...p, { id: `temp-${Date.now()}` }]);
   const removeSlZeile = (id: string) => setSlEingaben(p => p.filter(z => z.id !== id));
   const updateSlZeile = (id: string, feld: 'loesungId' | 'mlStr', wert: number | string | undefined) => {
     setSlEingaben(p => p.map(z => (z.id === id ? { ...z, [feld]: wert } : z)));
   };
-  
   const addNsZeile = () => setNsEingaben(p => [...p, { id: `temp-${Date.now()}` }]);
   const removeNsZeile = (id: string) => setNsEingaben(p => p.filter(z => z.id !== id));
   const updateNsZeile = (id: string, feld: 'salzId' | 'grammStr', wert: number | string | undefined) => {
     setNsEingaben(p => p.map(z => (z.id === id ? { ...z, [feld]: wert } : z)));
   };
-  
   const addSbZeile = () => setSbEingaben(p => [...p, { id: `temp-${Date.now()}` }]);
   const removeSbZeile = (id: string) => setSbEingaben(p => p.filter(z => z.id !== id));
   const updateSbZeile = (id: string, feld: 'itemId' | 'mlStr', wert: number | string | undefined) => {
@@ -127,7 +106,8 @@ export function EndlosungRechnerPage() {
     <Box p={4} pb={24}>
       <Flex align="center" mb={4}>
         <IconButton as={RouterLink} to="/einstellungen" aria-label="Zurück zu Mehr" icon={<FiChevronLeft />} variant="ghost" mr={2} />
-        <Heading>Endlösungs-Rechner</Heading>
+        {/* === HIER IST DIE ÄNDERUNG (Titel) === */}
+        <Heading>Nährlösungs-Rechner</Heading>
       </Flex>
       
       <VStack spacing={6} align="stretch">

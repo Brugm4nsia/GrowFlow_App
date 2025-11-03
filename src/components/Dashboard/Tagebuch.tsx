@@ -1,5 +1,5 @@
 // In Datei: src/components/Dashboard/Tagebuch.tsx
-// VOLLSTÄNDIGER CODE (mit allen Handlern)
+// VOLLSTÄNDIGER CODE
 
 import { 
   Box, Heading, Text, VStack, Flex, Checkbox, 
@@ -25,7 +25,6 @@ import { AktionErstellenModal } from './AktionErstellenModal';
 import { AktionLoeschenModal } from './AktionLoeschenModal';
 
 // === HILFSFUNKTIONEN ===
-
 const getDateRange = (date: Date) => {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
@@ -33,7 +32,6 @@ const getDateRange = (date: Date) => {
   end.setHours(23, 59, 59, 999);
   return { start, end };
 };
-
 const aktionIcons: { [key in IAktion['typ']]: any } = {
   wasser: FiDroplet,
   naehrstoffe: FiPlusSquare,
@@ -42,7 +40,6 @@ const aktionIcons: { [key in IAktion['typ']]: any } = {
   beschneiden: FiScissors,
   schutz: FiShield,
 };
-
 const logIcons: { [key in ILog['typ']]: any } = {
   pflanze: FiClipboard,
   umgebung: FiThermometer,
@@ -72,7 +69,7 @@ function NaehrwertAnzeige({ ergebnis }: { ergebnis: EndloesungErgebnis }) {
   );
 }
 
-// === SUB-KOMPONENTE: Aktion ===
+// === SUB-KOMPONENTE: Aktion (Aktualisiert für Bug-Fix) ===
 function AktionCard({ 
   aktion,
   onEdit,
@@ -96,6 +93,24 @@ function AktionCard({
   const datum = new Date(aktion.datum).toLocaleDateString('de-DE');
   const { details } = aktion;
 
+  // === HIER IST DIE KORREKTUR ===
+  // 1. Definiere den Titel (z.B. "Training")
+  const titel = aktion.typ.charAt(0).toUpperCase() + aktion.typ.slice(1);
+  
+  // 2. Definiere die Unter-Überschrift (die Details)
+  let unterueberschrift = aktion.notiz || "Keine Notiz"; // Standard-Fallback
+  
+  if (aktion.typ === 'training' && details?.trainingTyp) {
+    unterueberschrift = details.trainingTyp.toUpperCase();
+  }
+  if (aktion.typ === 'beschneiden' && details?.beschneidenTyp) {
+    unterueberschrift = details.beschneidenTyp.replace('_', ' ').toUpperCase();
+  }
+  if ((aktion.typ === 'wasser' || aktion.typ === 'naehrstoffe' || aktion.typ === 'ph') && details?.mengeL) {
+    unterueberschrift = `${details.mengeL} L | ${aktion.notiz || "Keine Notiz"}`;
+  }
+  // === ENDE KORREKTUR ===
+
   return (
     <Box w="100%" p={3} bg="gray.800" borderRadius="md">
       <Flex align="center">
@@ -108,11 +123,14 @@ function AktionCard({
         />
         <Icon as={aktionIcons[aktion.typ] || FiZap} color="green.300" />
         <Box ml={3}>
+          {/* Titel (z.B. "Training") */}
           <Text fontWeight="bold" textTransform="capitalize" textDecoration={aktion.status === 'erledigt' ? 'line-through' : 'none'}>
-            {aktion.typ} 
-            {details?.mengeL && <Text as="span" color="gray.400"> ({details.mengeL} L)</Text>}
+            {titel}
           </Text>
-          <Text fontSize="sm" color="gray.400" noOfLines={1}>{aktion.notiz || "Keine Notiz"}</Text>
+          {/* Unter-Überschrift (z.B. "LST") */}
+          <Text fontSize="sm" color="gray.400" noOfLines={1}>
+            {unterueberschrift}
+          </Text>
         </Box>
         <Spacer />
         <Tag size="sm">{datum}</Tag>
@@ -130,7 +148,7 @@ function AktionCard({
   );
 }
 
-// === SUB-KOMPONENTE: Messwerte ===
+// === SUB-KOMPONENTE: Messwerte (Unverändert) ===
 function MesswerteAnzeige({ messwerte }: { messwerte: NonNullable<ILog['messwerte']> }) {
   const ignorierteSchluessel = [
     'pumpenintervall_on', 'pumpenintervall_on_einheit',
@@ -154,16 +172,8 @@ function MesswerteAnzeige({ messwerte }: { messwerte: NonNullable<ILog['messwert
   );
 }
 
-// === SUB-KOMPONENTE: Log ===
-function LogCard({ 
-  log, 
-  onEdit,
-  onDelete
-}: { 
-  log: ILog,
-  onEdit: () => void,
-  onDelete: () => void,
-}) {
+// === SUB-KOMPONENTE: Log (Unverändert) ===
+function LogCard({ log, onEdit, onDelete }: { log: ILog, onEdit: () => void, onDelete: () => void }) {
   const [fotoUrl, setFotoUrl] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (log.typ === 'foto' && log.foto) {
@@ -196,7 +206,7 @@ function LogCard({
   );
 }
 
-// === HAUPT-KOMPONENTE ===
+// === HAUPT-KOMPONENTE (Unverändert) ===
 interface TagebuchProps {
   filterPflanzenId?: number;
   showAll?: boolean;
@@ -206,7 +216,6 @@ export function Tagebuch({ filterPflanzenId, showAll, selectedDate }: TagebuchPr
   
   const { start, end } = getDateRange(selectedDate || new Date());
 
-  // States für Log-Modals
   const [logToEdit, setLogToEdit] = useState<ILog | undefined>(undefined);
   const [logToDelete, setLogToDelete] = useState<ILog | undefined>(undefined);
   const { isOpen: isPflanzeOpen, onOpen: onPflanzeOpen, onClose: onPflanzeClose } = useDisclosure();
@@ -214,7 +223,6 @@ export function Tagebuch({ filterPflanzenId, showAll, selectedDate }: TagebuchPr
   const { isOpen: isFotoOpen, onOpen: onFotoOpen, onClose: onFotoClose } = useDisclosure();
   const { isOpen: isLogDeleteOpen, onOpen: onLogDeleteOpen, onClose: onLogDeleteClose } = useDisclosure();
   
-  // States für Aktion-Modals
   const [aktionToEdit, setAktionToEdit] = useState<IAktion | undefined>(undefined);
   const [aktionToDelete, setAktionToDelete] = useState<IAktion | undefined>(undefined);
   const { isOpen: isAktionOpen, onOpen: onAktionOpen, onClose: onAktionClose } = useDisclosure();
@@ -241,47 +249,15 @@ export function Tagebuch({ filterPflanzenId, showAll, selectedDate }: TagebuchPr
     return alleEintraege.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
   }, [aktionen, logs]);
 
-  // === KORREKTUR: Alle Handler sind jetzt einkommentiert ===
-  // Handler für Logs
-  const handleLogEdit = (log: ILog) => {
-    setLogToEdit(log);
-    if (log.typ === 'pflanze') onPflanzeOpen();
-    if (log.typ === 'umgebung') onUmgebungOpen();
-    if (log.typ === 'foto') onFotoOpen();
-  };
-  const handleLogDelete = (log: ILog) => {
-    setLogToDelete(log);
-    onLogDeleteOpen();
-  };
-  const handleLogEditClose = () => {
-    setLogToEdit(undefined);
-    onPflanzeClose();
-    onUmgebungClose();
-    onFotoClose();
-  };
-  const handleLogDeleteClose = () => {
-    setLogToDelete(undefined);
-    onLogDeleteClose();
-  };
+  const handleLogEdit = (log: ILog) => { setLogToEdit(log); if (log.typ === 'pflanze') onPflanzeOpen(); if (log.typ === 'umgebung') onUmgebungOpen(); if (log.typ === 'foto') onFotoOpen(); };
+  const handleLogDelete = (log: ILog) => { setLogToDelete(log); onLogDeleteOpen(); };
+  const handleLogEditClose = () => { setLogToEdit(undefined); onPflanzeClose(); onUmgebungClose(); onFotoClose(); };
+  const handleLogDeleteClose = () => { setLogToDelete(undefined); onLogDeleteClose(); };
   
-  // Handler für Aktionen
-  const handleAktionEdit = (aktion: IAktion) => {
-    setAktionToEdit(aktion);
-    onAktionOpen();
-  };
-  const handleAktionDelete = (aktion: IAktion) => {
-    setAktionToDelete(aktion);
-    onAktionDeleteOpen();
-  };
-  const handleAktionEditClose = () => {
-    setAktionToEdit(undefined);
-    onAktionClose();
-  };
-  const handleAktionDeleteClose = () => {
-    setAktionToDelete(undefined);
-    onAktionDeleteClose();
-  };
-  // === ENDE KORREKTUR ===
+  const handleAktionEdit = (aktion: IAktion) => { setAktionToEdit(aktion); onAktionOpen(); };
+  const handleAktionDelete = (aktion: IAktion) => { setAktionToDelete(aktion); onAktionDeleteOpen(); };
+  const handleAktionEditClose = () => { setAktionToEdit(undefined); onAktionClose(); };
+  const handleAktionDeleteClose = () => { setAktionToDelete(undefined); onAktionDeleteClose(); };
 
   let titel = "TAGEBUCH";
   if (filterPflanzenId) titel = "Gesamtes Protokoll (Pflanze)";
@@ -292,15 +268,12 @@ export function Tagebuch({ filterPflanzenId, showAll, selectedDate }: TagebuchPr
   return (
     <Box p={4} pb="100px"> 
       <Heading size="sm" color="gray.400" mb={4}>{titel}</Heading>
-      
       {eintraege.length === 0 ? (
-        <Box bg="gray.800" p={4} borderRadius="md" textAlign="center">
-          <Text color="gray.400">Keine Einträge für diesen Tag</Text>
-        </Box>
+        <Box bg="gray.800" p={4} borderRadius="md" textAlign="center"><Text color="gray.400">Keine Einträge für diesen Tag</Text></Box>
       ) : (
         <VStack spacing={3}>
           {eintraege.map(eintrag => {
-            if ('status' in eintrag) { // Dies ist eine IAktion
+            if ('status' in eintrag) {
               return (
                 <AktionCard 
                   key={`aktion-${eintrag.id}`} 
@@ -310,7 +283,7 @@ export function Tagebuch({ filterPflanzenId, showAll, selectedDate }: TagebuchPr
                 />
               );
             }
-            const log = eintrag as ILog; // Dies ist ein ILog
+            const log = eintrag as ILog;
             return (
               <LogCard 
                 key={`log-${log.id}`} 
@@ -323,35 +296,15 @@ export function Tagebuch({ filterPflanzenId, showAll, selectedDate }: TagebuchPr
         </VStack> 
       )}
       
-      {/* Modals für Logs */}
-      {logToDelete && (
-        <LogLoeschenModal
-          isOpen={isLogDeleteOpen}
-          onClose={handleLogDeleteClose}
-          logToDelete={logToDelete}
-        />
-      )}
+      {logToDelete && ( <LogLoeschenModal isOpen={isLogDeleteOpen} onClose={handleLogDeleteClose} logToDelete={logToDelete} /> )}
       {logToEdit && (
         <>
-          <PflanzenProtokollModal
-            isOpen={isPflanzeOpen}
-            onClose={handleLogEditClose}
-            logToEdit={logToEdit.typ === 'pflanze' ? logToEdit : undefined}
-          />
-          <UmgebungProtokollModal
-            isOpen={isUmgebungOpen}
-            onClose={handleLogEditClose}
-            logToEdit={logToEdit.typ === 'umgebung' ? logToEdit : undefined}
-          />
-          <FotoLogModal
-            isOpen={isFotoOpen}
-            onClose={handleLogEditClose}
-            logToEdit={logToEdit.typ === 'foto' ? logToEdit : undefined}
-          />
+          <PflanzenProtokollModal isOpen={isPflanzeOpen} onClose={handleLogEditClose} logToEdit={logToEdit.typ === 'pflanze' ? logToEdit : undefined} />
+          <UmgebungProtokollModal isOpen={isUmgebungOpen} onClose={handleLogEditClose} logToEdit={logToEdit.typ === 'umgebung' ? logToEdit : undefined} />
+          <FotoLogModal isOpen={isFotoOpen} onClose={handleLogEditClose} logToEdit={logToEdit.typ === 'foto' ? logToEdit : undefined} />
         </>
       )}
       
-      {/* Modals für Aktionen */}
       {aktionToDelete && (
         <AktionLoeschenModal
           isOpen={isAktionDeleteOpen}

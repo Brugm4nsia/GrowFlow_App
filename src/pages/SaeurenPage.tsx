@@ -12,40 +12,42 @@ import {
   Spacer,
   IconButton,
   Tag,
-  HStack, // NEU
+  HStack,
+  Icon, // NEU
 } from '@chakra-ui/react';
-import { FiPlus, FiChevronLeft, FiEdit, FiTrash } from 'react-icons/fi'; // NEU
+import { FiPlus, FiChevronLeft, FiEdit, FiTrash, FiLock } from 'react-icons/fi'; // NEU
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { ISaeureBase } from '../types';
 import { SaeureBaseErstellenModal } from '../components/Einstellungen/SaeureBaseErstellenModal';
 import { Link as RouterLink } from 'react-router-dom';
-import { useState } from 'react'; // NEU
-// NEU: Importiere das Löschen-Modal
+import { useState } from 'react';
 import { SaeureBaseLoeschenModal } from '../components/Einstellungen/SaeureBaseLoeschenModal';
 
 // Karte zur Anzeige eines Regulators
 function SaeureBaseCard({ 
   item,
-  onEdit, // NEU
-  onDelete // NEU
+  onEdit,
+  onDelete
 }: { 
   item: ISaeureBase,
   onEdit: () => void,
   onDelete: () => void,
 }) {
-  const element = Object.keys(item.element_prozent)[0] || "N/A";
-  const prozent = item.element_prozent[element] || 0;
-  // NEU: Zeige das berechnete Ergebnis
+  // Zeige das berechnete Ergebnis
   const reinststoffKey = Object.keys(item.reinststoff_mg_ml)[0];
-  const reinststoffWert = item.reinststoff_mg_ml[reinststoffKey] || 0;
+  const reinststoffWert = item.reinststoff_mg_ml[reinststoffKey as keyof ISaeureBase['reinststoff_mg_ml']] || 0;
 
   return (
     <Box p={4} bg="gray.800" borderRadius="md" w="100%">
       <Flex align="center">
         <Box flex={1}>
-          <Heading size="md">{item.name}</Heading>
-          <Text color="gray.400">{element.replace('_prozent', '')}: {prozent}% | Dichte: {item.dichte}</Text>
+          <Flex align="center">
+            <Heading size="md">{item.name}</Heading>
+            {/* NEU: Schloss-Icon */}
+            {item.isReadOnly && <Icon as={FiLock} color="gray.500" ml={2} title="Master-Daten (Schreibgeschützt)" />}
+          </Flex>
+          <Text color="gray.400">{item.konzentration}% {item.ch_formel} | Dichte: {item.dichte} g/cm³</Text>
           {/* NEU: Zeige Ergebnis */}
           {reinststoffKey && (
             <Text color="green.300" fontWeight="bold">
@@ -56,10 +58,10 @@ function SaeureBaseCard({
         <Tag colorScheme={item.typ === 'saeure' ? 'red' : 'blue'} mr={4}>
           {item.typ === 'saeure' ? 'Säure' : 'Base'}
         </Tag>
-        {/* NEU: Bearbeiten/Löschen-Buttons */}
         <HStack>
-          <IconButton icon={<FiEdit />} aria-label="Bearbeiten" variant="ghost" onClick={onEdit} />
-          <IconButton icon={<FiTrash />} aria-label="Löschen" variant="ghost" colorScheme="red" onClick={onDelete} />
+          {/* NEU: Deaktiviert bei ReadOnly */}
+          <IconButton icon={<FiEdit />} aria-label="Bearbeiten" variant="ghost" onClick={onEdit} isDisabled={item.isReadOnly} />
+          <IconButton icon={<FiTrash />} aria-label="Löschen" variant="ghost" colorScheme="red" onClick={onDelete} isDisabled={item.isReadOnly} />
         </HStack>
       </Flex>
     </Box>
@@ -73,18 +75,17 @@ export function SaeurenPage() {
   const [itemToEdit, setItemToEdit] = useState<ISaeureBase | undefined>(undefined);
   const [itemToDelete, setItemToDelete] = useState<ISaeureBase | undefined>(undefined);
 
-  const saeurenBasen = useLiveQuery(() => db.saeurenBasen.toArray(), []);
+  // Lade ALLE (Master + Benutzer)
+  const saeurenBasen = useLiveQuery(() => db.saeurenBasen.orderBy('name').toArray(), []) || [];
 
   const handleOpenNew = () => {
     setItemToEdit(undefined);
     onOpen();
   };
-
   const handleOpenEdit = (item: ISaeureBase) => {
     setItemToEdit(item);
     onOpen();
   };
-  
   const handleOpenDelete = (item: ISaeureBase) => {
     setItemToDelete(item);
     onDeleteOpen();
@@ -113,7 +114,7 @@ export function SaeurenPage() {
       </Flex>
 
       <VStack spacing={4}>
-        {saeurenBasen && saeurenBasen.length > 0 ? (
+        {saeurenBasen.length > 0 ? (
           saeurenBasen.map(s => (
             <SaeureBaseCard 
               key={s.id} 

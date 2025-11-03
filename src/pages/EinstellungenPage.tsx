@@ -14,6 +14,7 @@ import { useRef } from 'react';
 import { db } from '../db';
 import { importDB, exportDB } from 'dexie-export-import';
 
+// === HIER STARTEN DIE FUNKTIONEN (NUR EINMAL DEFINIERT) ===
 function MenueEintrag({ to, icon, title, description }: { to: string, icon: any, title: string, description: string }) {
   return (
     <Flex 
@@ -43,19 +44,14 @@ export function EinstellungenPage() {
 
   const handleExport = async () => {
     try {
-      const blob = await exportDB(db, {
-        prettyJson: true, 
-      });
-      
+      const blob = await exportDB(db, { prettyJson: true });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `growflow-backup-${new Date().toISOString().split('T')[0]}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      
       toast({ title: "Datenbank exportiert", status: "success" });
-
     } catch (error) {
       console.error(error);
       toast({ title: "Export fehlgeschlagen", description: String(error), status: "error" });
@@ -69,28 +65,21 @@ export function EinstellungenPage() {
   const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     if (!confirm("WARNUNG: Der Import überschreibt alle aktuellen Daten. Möchtest du wirklich fortfahren?")) {
       event.target.value = "";
       return;
     }
-
     try {
-      // === HIER IST DIE KORREKTUR ===
-      // Alle Optionen entfernt. 'importDB' löscht standardmäßig
-      // Tabellen, bevor es importiert, wenn es keine Delta-Datei ist.
       await importDB(file);
-      
       toast({ title: "Import erfolgreich!", description: "Die App wird neu geladen.", status: "success" });
       window.location.reload();
-
     } catch (error) {
       console.error(error);
       toast({ title: "Import fehlgeschlagen", description: "Die Datei ist möglicherweise beschädigt.", status: "error" });
     }
     event.target.value = "";
   };
-
+  // === ENDE DER FUNKTIONEN ===
 
   return (
     <Box p={4} pb="100px">
@@ -104,7 +93,13 @@ export function EinstellungenPage() {
       
       <Heading mb={4}>Rechner</Heading>
       <VStack spacing={4} mb={8}>
-        <MenueEintrag to="/endlosung-rechner" icon={FiFilter} title="Endlösungs-Rechner" description="Finale Nährlösung berechnen" />
+        {/* === HIER IST DIE KORREKTUR (Link & Text) === */}
+        <MenueEintrag 
+          to="/endlosung-rechner"
+          icon={FiFilter}
+          title="Nährlösungs-Rechner"
+          description="Finale Nährlösung berechnen"
+        />
       </VStack>
 
       <Heading mb={4}>Datenverwaltung</Heading>
@@ -131,7 +126,7 @@ export function EinstellungenPage() {
       </VStack>
 
       <Text fontSize="xs" color="gray.500" textAlign="center" mt={12}>
-        © {new Date().getFullYear()} GrowFlow. Alle Rechte vorbehalten.
+        © {new Date().getFullYear()} GrowFlow App. Alle Rechte vorbehalten.
       </Text>
     </Box>
   );
