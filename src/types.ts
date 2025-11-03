@@ -15,20 +15,18 @@ export type PflanzenStatus = 'aktiv' | 'tot' | 'geoerntet';
 export type PumpenEinheit = 'h' | 'min' | 'sek';
 export type ZutatTyp = 'naehrsalz' | 'stammlosung' | 'saeure';
 
-// === HIER IST DER FIX (FEHLER 1 & 2) ===
-// Diese Typen (aus deiner Bug-Liste) haben gefehlt
 export type TrainingTyp = 'lst' | 'fim' | 'scrog' | 'supercropping' | 'topping';
 export type BeschneidenTyp = 'topping' | 'fim' | 'entlaubung' | 'lollipopping' | 'untere_aeste';
-// === ENDE FIX ===
 
-// Globaler Typ für Rechner-Ergebnisse
+// === NEU: Chemische Formeln für Säuren ===
+export type SaeureFormel = 'H3PO4' | 'HNO3' | 'H2SO4' | 'KOH' | 'P2O5';
+
 export type EndloesungErgebnis = {
   N_gesamt: number; NH4: number; NO3: number; P: number; K: number; Ca: number;
   Mg: number; S: number; Fe: number; Mn: number; Zn: number; Cu: number;
   B: number; Si: number; Mo: number;
   Na?: number; Cl?: number;
 };
-
 export interface IPflanze {
   id?: number; name: string; sorte: string; breeder: string; umgebungId: number; 
   stadium: PflanzenStadium; medium: AnbauMedium; startDatum: Date; status: PflanzenStatus;
@@ -40,27 +38,16 @@ export interface IUmgebung {
   id?: number; name: string; art: UmgebungsArt; lichter?: string; belichtungszeit?: number; 
   maße?: { laenge: number; breite: number; hoehe: number; };
 }
-
-// === LOGBUCH & AKTIONEN ===
 export interface IAktion {
   id?: number; 
   typ: 'wasser' | 'naehrstoffe' | 'ph' | 'training' | 'beschneiden' | 'schutz';
-  datum: Date; 
-  status: AktionStatus; 
-  notiz?: string; 
-  zielPflanzenIds: number[];
-  zielUmgebungIds: number[]; 
-  protokollId?: number; 
-  
+  datum: Date; status: AktionStatus; notiz?: string; zielPflanzenIds: number[];
+  zielUmgebungIds: number[]; protokollId?: number; 
   details?: {
-    wasserProfilId?: number;
-    mengeL?: number;
+    wasserProfilId?: number; mengeL?: number;
     zutaten?: { id: number; menge: number; typ: ZutatTyp; }[];
-    
-    // Diese Zeilen funktionieren jetzt, da die Typen oben definiert sind
     trainingTyp?: TrainingTyp;
     beschneidenTyp?: BeschneidenTyp;
-    
     berechnetesErgebnis_mg_l?: EndloesungErgebnis;
   };
 }
@@ -78,10 +65,8 @@ export interface ILog {
     pumpenintervall_off_einheit?: PumpenEinheit;
   };
 }
-
-// === NÄHRSTOFF-DATENBANK === (Unverändert)
 export interface INaehrsalz {
-  id?: number; name: string; beschreibung?: string;
+  id?: number; name: string; beschreibung?: string; isReadOnly?: boolean;
   inhaltsstoffe: {
     NH4_prozent?: number; NO3_prozent?: number; P2O5_prozent?: number; K2O_prozent?: number;
     CaO_prozent?: number; MgO_prozent?: number; S_prozent?: number; SO4_prozent?: number;
@@ -107,8 +92,21 @@ export interface IWasserprofil {
   };
   ec: number; ph: number; kh: number;
 }
+
+// === KORREKTUR: ISaeureBase komplett geändert ===
 export interface ISaeureBase {
-  id?: number; name: string; typ: SaeureBaseTyp; dichte: number;
-  element_prozent: { [key: string]: number; };
-  reinststoff_mg_ml: { [key: string]: number; };
+  id?: number;
+  name: string;
+  typ: SaeureBaseTyp;
+  dichte: number; // g/cm³
+  ch_formel: SaeureFormel; // z.B. H3PO4
+  konzentration: number; // z.B. 85 (%)
+  isReadOnly?: boolean; // Für Master-Daten
+  // Wird automatisch berechnet
+  reinststoff_mg_ml: { 
+    P?: number;
+    N?: number;
+    S?: number;
+    K?: number;
+  };
 }

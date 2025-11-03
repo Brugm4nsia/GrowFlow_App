@@ -2,6 +2,8 @@
 // VOLLSTÄNDIGER CODE
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+// NEU: Importiere die Vercel Analytics Komponente
+import { Analytics } from '@vercel/analytics/react';
 import { MainLayout } from './components/Navigation/MainLayout';
 import { DashboardPage } from './pages/DashboardPage';
 import { PflanzenPage } from './pages/PflanzenPage';
@@ -14,7 +16,7 @@ import { SaeurenPage } from './pages/SaeurenPage';
 import { PflanzeDetailPage } from './pages/PflanzeDetailPage';
 import { StammlosungenPage } from './pages/StammlosungenPage';
 import { StammlosungRechnerPage } from './pages/StammlosungRechnerPage';
-import { EndlosungRechnerPage } from './pages/EndlosungRechnerPage';
+import { NaehrlosungRechnerPage } from './pages/NaehrlosungRechnerPage';
 import { NaehrsalzDetailPage } from './pages/NaehrsalzDetailPage';
 
 export function App() {
@@ -31,7 +33,7 @@ export function App() {
           <Route path="einstellungen" element={<EinstellungenPage />} />
         </Route>
         
-        {/* Routen ohne untere Navigationsleiste (Detail/Rechner-Seiten) */}
+        {/* Routen ohne untere Navigationsleiste */}
         <Route path="wasserprofile" element={<WasserprofilePage />} />
         <Route path="naehrsalze" element={<NaehrsalzePage />} />
         <Route path="naehrsalze/:salzId" element={<NaehrsalzDetailPage />} /> 
@@ -39,12 +41,15 @@ export function App() {
         <Route path="pflanze/:pflanzenId" element={<PflanzeDetailPage />} />
         <Route path="stammlosungen" element={<StammlosungenPage />} />
         
-        {/* NEUE & GEÄNDERTE ROUTEN FÜR DEN RECHNER */}
-        <Route path="stammlosung-rechner" element={<StammlosungRechnerPage />} /> {/* Für "Neu" */}
-        <Route path="stammlosung-rechner/:rezeptId" element={<StammlosungRechnerPage />} /> {/* Für "Bearbeiten" */}
+        <Route path="stammlosung-rechner" element={<StammlosungRechnerPage />} />
+        <Route path="stammlosung-rechner/:rezeptId" element={<StammlosungRechnerPage />} />
 
-        <Route path="endlosung-rechner" element={<EndlosungRechnerPage />} />
+        <Route path="endlosung-rechner" element={<NaehrlosungRechnerPage />} />
       </Routes>
+      
+      {/* === HIER IST DIE NEUE KOMPONENTE === */}
+      {/* Sie ist "unsichtbar" und sammelt nur Daten */}
+      <Analytics />
     </BrowserRouter>
   );
 }

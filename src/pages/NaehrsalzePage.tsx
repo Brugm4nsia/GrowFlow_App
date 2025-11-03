@@ -1,5 +1,5 @@
 // In Datei: src/pages/NaehrsalzePage.tsx
-// VOLLSTÄNDIGER CODE (mit Layout-Korrektur)
+// VOLLSTÄNDIGER CODE
 
 import { 
   Box, 
@@ -12,11 +12,12 @@ import {
   Spacer,
   IconButton,
   HStack,
-  Wrap,     // NEU
-  WrapItem, // NEU
-  Tag,      // NEU
+  Wrap,
+  WrapItem,
+  Tag,
+  Icon,
 } from '@chakra-ui/react';
-import { FiPlus, FiChevronLeft, FiEdit, FiTrash } from 'react-icons/fi';
+import { FiPlus, FiChevronLeft, FiEdit, FiTrash, FiLock } from 'react-icons/fi';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db';
 import { INaehrsalz } from '../types';
@@ -38,28 +39,28 @@ function NaehrsalzCard({
   
   const inhaltsstoffe = salz.inhaltsstoffe || {};
   
-  // === HIER IST DIE KORREKTUR ===
-  // Wandle das Objekt in ein Array um und filtere leere/Null-Werte
   const ergebnisEintraege = Object.entries(inhaltsstoffe)
     .filter(([, val]) => val && val > 0)
     .map(([key, val]) => ({
-      key: key.replace('_prozent', ''), // Mache 'NH4_prozent' zu 'NH4'
+      key: key.replace('_prozent', ''),
       val: val
     }));
 
   return (
     <Box p={4} bg="gray.800" borderRadius="md" w="100%">
-      <Flex align="center" mb={3}> {/* Mehr Abstand nach unten */}
-        <Box as={RouterLink} to={`/naehrsalze/${salz.id}`} flex={1} _hover={{ textDecoration: 'underline' }}>
-          <Heading size="md">{salz.name}</Heading>
-        </Box>
+      <Flex align="center" mb={3}>
+        <Heading size="md">{salz.name}</Heading>
+        {/* === KORREKTUR: Zeige Schloss-Icon für Master-Einträge === */}
+        {salz.isReadOnly && <Icon as={FiLock} color="gray.500" ml={2} title="Master-Daten (Schreibgeschützt)" />}
         <Spacer />
         <HStack>
+          {/* === KORREKTUR: Deaktiviere Buttons für Master-Einträge === */}
           <IconButton 
             icon={<FiEdit />} 
             aria-label="Bearbeiten" 
             variant="ghost"
             onClick={onEdit}
+            isDisabled={salz.isReadOnly} // Deaktiviert
           />
           <IconButton 
             icon={<FiTrash />} 
@@ -67,11 +68,11 @@ function NaehrsalzCard({
             variant="ghost" 
             colorScheme="red"
             onClick={onDelete}
+            isDisabled={salz.isReadOnly} // Deaktiviert
           />
         </HStack>
       </Flex>
       
-      {/* Zeige die Nährstoffe dynamisch als Tags an */}
       <Wrap spacing="8px">
         {ergebnisEintraege.length > 0 ? (
           ergebnisEintraege.map(e => (
@@ -82,7 +83,7 @@ function NaehrsalzCard({
             </WrapItem>
           ))
         ) : (
-          <Text color="gray.400" fontSize="sm">Keine Inhaltsstoffe angegeben</Text>
+          <Text color="gray.400" fontSize="sm">{salz.beschreibung || "Keine Inhaltsstoffe angegeben"}</Text>
         )}
       </Wrap>
     </Box>
@@ -93,7 +94,11 @@ export function NaehrsalzePage() {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
 
-  const salze = useLiveQuery(() => db.naehrsalze.toArray(), []) || [];
+  // Lädt jetzt ALLE Salze (Master + Benutzer) aus der DB
+  const alleSalze = useLiveQuery(
+    () => db.naehrsalze.orderBy('name').toArray(), 
+    []
+  ) || [];
 
   const [salzToEdit, setSalzToEdit] = useState<INaehrsalz | undefined>(undefined);
   const [salzToDelete, setSalzToDelete] = useState<INaehrsalz | undefined>(undefined);
@@ -102,12 +107,10 @@ export function NaehrsalzePage() {
     setSalzToEdit(undefined);
     onOpen();
   };
-
   const handleOpenEdit = (salz: INaehrsalz) => {
     setSalzToEdit(salz);
     onOpen();
   };
-  
   const handleOpenDelete = (salz: INaehrsalz) => {
     setSalzToDelete(salz);
     onDeleteOpen();
@@ -136,8 +139,8 @@ export function NaehrsalzePage() {
       </Flex>
 
       <VStack spacing={4}>
-        {salze.length > 0 ? (
-          salze.map(s => (
+        {alleSalze.length > 0 ? (
+          alleSalze.map(s => (
             <NaehrsalzCard 
               key={s.id} 
               salz={s} 

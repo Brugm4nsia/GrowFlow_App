@@ -8,19 +8,24 @@ import {
 } from '@chakra-ui/react';
 import { useState, useEffect, useRef } from 'react';
 import { db } from '../../db';
-import { ISaeureBase, SaeureBaseTyp } from '../../types';
-
-// === UMRECHNUNGSFAKTOREN (aus NutrientCalculator) ===
-const F_P_aus_P2O5 = 0.4364;
-const F_K_aus_K2O = 0.830;
-const F_N_aus_NO3 = 0.226;
-const F_S_aus_SO4 = 0.334;
+import { ISaeureBase, SaeureBaseTyp, SaeureFormel } from '../../types';
+// NEU: Importiere den neuen Rechner
+import { calculateSaeureReinststoffe } from '../../utils/SaeureCalculator';
 
 interface SaeureBaseErstellenModalProps {
   isOpen: boolean;
   onClose: () => void;
   itemToEdit?: ISaeureBase;
 }
+
+// NEU: Liste der Formeln für das Dropdown
+const formelOptions: { key: SaeureFormel, label: string }[] = [
+  { key: 'H3PO4', label: 'H3PO4 (Phosphorsäure)' },
+  { key: 'HNO3', label: 'HNO3 (Salpetersäure)' },
+  { key: 'H2SO4', label: 'H2SO4 (Schwefelsäure)' },
+  { key: 'KOH', label: 'KOH (Kaliumhydroxid)' },
+  { key: 'P2O5', label: 'P2O5 (Phosphorpentoxid)' },
+];
 
 export function SaeureBaseErstellenModal({ isOpen, onClose, itemToEdit }: SaeureBaseErstellenModalProps) {
   const toast = useToast();
@@ -30,18 +35,16 @@ export function SaeureBaseErstellenModal({ isOpen, onClose, itemToEdit }: Saeure
   const [name, setName] = useState("");
   const [typ, setTyp] = useState<SaeureBaseTyp>("saeure");
   const [dichteStr, setDichteStr] = useState("1.0");
-  const [elementName, setElementName] = useState("P2O5_prozent");
-  const [elementWertStr, setElementWertStr] = useState("0");
+  const [formel, setFormel] = useState<SaeureFormel>("H3PO4");
+  const [konzentrationStr, setKonzentrationStr] = useState("0");
   
   useEffect(() => {
     if (isEditMode && isOpen) {
       setName(itemToEdit.name);
       setTyp(itemToEdit.typ);
       setDichteStr(String(itemToEdit.dichte));
-      const elName = Object.keys(itemToEdit.element_prozent)[0] || "P2O5_prozent";
-      const elWert = itemToEdit.element_prozent[elName] || 0;
-      setElementName(elName);
-      setElementWertStr(String(elWert));
+      setFormel(itemToEdit.ch_formel);
+      setKonzentrationStr(String(itemToEdit.konzentration));
     } else {
       resetFormular();
     }
@@ -50,34 +53,24 @@ export function SaeureBaseErstellenModal({ isOpen, onClose, itemToEdit }: Saeure
 
   const handleSave = async () => {
     const dichteNum = parseFloat(dichteStr.replace(',', '.'));
-    const wertNum = parseFloat(elementWertStr.replace(',', '.'));
+    const konzNum = parseFloat(konzentrationStr.replace(',', '.'));
 
-    if (!name || !dichteNum || dichteNum <= 0 || !wertNum || wertNum <= 0) {
-      toast({ title: "Angaben unvollständig", description: "Name, Dichte (>0) und Wert (>0) sind Pflichtfelder.", status: "warning", duration: 3000 });
+    if (!name || !dichteNum || dichteNum <= 0 || !konzNum || konzNum <= 0) {
+      toast({ title: "Angaben unvollständig", description: "Alle Felder müssen > 0 sein.", status: "warning", duration: 3000 });
       return;
     }
 
-    const elementProzent = { [elementName]: wertNum };
-    
-    const reinststoffMgMl: { [key: string]: number } = {};
-    const mg_ml_verbindung = 1000 * dichteNum * (wertNum / 100);
-
-    if (elementName === 'P2O5_prozent') {
-      reinststoffMgMl['P'] = mg_ml_verbindung * F_P_aus_P2O5;
-    } else if (elementName === 'K2O_prozent') {
-      reinststoffMgMl['K'] = mg_ml_verbindung * F_K_aus_K2O;
-    } else if (elementName === 'NO3_prozent') {
-      reinststoffMgMl['N'] = mg_ml_verbindung * F_N_aus_NO3;
-    } else if (elementName === 'SO4_prozent') {
-      reinststoffMgMl['S'] = mg_ml_verbindung * F_S_aus_SO4;
-    }
+    // === NEUE BERECHNUNG (Schritt 2) ===
+    const reinststoffMgMl = calculateSaeureReinststoffe(formel, dichteNum, konzNum);
 
     const saeureBaseDaten: Omit<ISaeureBase, 'id'> = {
       name,
       typ,
       dichte: dichteNum,
-      element_prozent: elementProzent,
+      ch_formel: formel,
+      konzentration: konzNum,
       reinststoff_mg_ml: reinststoffMgMl,
+      isReadOnly: false, // Benutzerdefinierte Einträge sind nie ReadOnly
     };
 
     try {
@@ -85,6 +78,12 @@ export function SaeureBaseErstellenModal({ isOpen, onClose, itemToEdit }: Saeure
         await db.saeurenBasen.put({ id: itemToEdit.id!, ...saeureBaseDaten });
         toast({ title: "Regulator aktualisiert", status: "success", duration: 2000 });
       } else {
+        // Prüfen, ob der Name bereits existiert (da er jetzt 'unique' ist)
+        const exists = await db.saeurenBasen.where('name').equals(name).count();
+        if (exists > 0) {
+          toast({ title: "Name existiert bereits", description: "Bitte einen eindeutigen Namen wählen.", status: "error", duration: 3000 });
+          return;
+        }
         await db.saeurenBasen.add(saeureBaseDaten as ISaeureBase);
         toast({ title: "Regulator erstellt", status: "success", duration: 2000 });
       }
@@ -100,8 +99,8 @@ export function SaeureBaseErstellenModal({ isOpen, onClose, itemToEdit }: Saeure
     setName("");
     setTyp("saeure");
     setDichteStr("1.0");
-    setElementName("P2O5_prozent");
-    setElementWertStr("0");
+    setFormel("H3PO4");
+    setKonzentrationStr("0");
   };
 
   const handleClose = () => {
@@ -130,51 +129,46 @@ export function SaeureBaseErstellenModal({ isOpen, onClose, itemToEdit }: Saeure
                   <option value="base">Base (pH Up)</option>
                 </Select>
               </FormControl>
-              
-              {/* === FIX FÜR PUNKT 1 (Label) & 2 (Dezimalen) === */}
               <FormControl isRequired>
                 <FormLabel>Dichte (g/cm³)</FormLabel>
                 <NumberInput 
                   value={dichteStr} 
                   onChange={(valStr) => setDichteStr(valStr)} 
-                  precision={2} // Erlaube 2 Dezimalstellen
-                  step={0.01}
+                  precision={3} 
+                  step={0.1}
                 >
-                  <NumberInputField placeholder="z.B. 1.71" />
+                  <NumberInputField placeholder="z.B. 1.685" />
                 </NumberInput>
               </FormControl>
             </SimpleGrid>
 
             <Box w="100%" p={4} bg="gray.700" borderRadius="md">
-              <Text fontWeight="bold" mb={2}>Enthaltenes Element (für Nährwert)</Text>
+              <Text fontWeight="bold" mb={2}>Enthaltenes Element (zur Berechnung)</Text>
               <SimpleGrid columns={2} spacing={4} w="100%">
+                {/* === FIX FÜR BUG 1 (UI) === */}
                 <FormControl isRequired>
-                  <FormLabel>Element</FormLabel>
-                  <Select value={elementName} onChange={(e) => setElementName(e.target.value)}>
-                    <option value="P2O5_prozent">P2O5</option>
-                    <option value="K2O_prozent">K2O</option>
-                    <option value="NO3_prozent">NO3</option>
-                    <option value="SO4_prozent">SO4</option>
+                  <FormLabel>Chem. Formel</FormLabel>
+                  <Select value={formel} onChange={(e) => setFormel(e.target.value as SaeureFormel)}>
+                    {formelOptions.map(opt => (
+                      <option key={opt.key} value={opt.key}>{opt.label}</option>
+                    ))}
                   </Select>
                 </FormControl>
-                
-                {/* === FIX FÜR PUNKT 2 (Dezimalen) === */}
                 <FormControl isRequired>
-                  <FormLabel>Wert (in %)</FormLabel>
+                  <FormLabel>Konzentration (in %)</FormLabel>
                   <NumberInput 
-                    value={elementWertStr} 
-                    onChange={(valStr) => setElementWertStr(valStr)} 
+                    value={konzentrationStr} 
+                    onChange={(valStr) => setKonzentrationStr(valStr)} 
                     min={0} 
                     max={100}
-                    precision={1} // Erlaube 1 Dezimalstelle
+                    precision={1}
                     step={0.1}
                   >
-                    <NumberInputField placeholder="z.B. 61.7" />
+                    <NumberInputField placeholder="z.B. 85" />
                   </NumberInput>
                 </FormControl>
               </SimpleGrid>
             </Box>
-
           </VStack>
         </ModalBody>
 
