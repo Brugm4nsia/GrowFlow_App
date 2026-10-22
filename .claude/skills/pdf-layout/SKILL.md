@@ -9,8 +9,8 @@ Dieser Skill fasst **in der Erstellungssitzung geprüfte** Erkenntnisse zusammen
 `pdftoppm`, Sichtprüfung der PNGs; `@react-pdf/renderer` 4.9.0, React 18). Eine lauffähige Referenz liegt in
 [`reference/example-report.tsx`](./reference/example-report.tsx) – zuerst ansehen, dann anpassen.
 
-**Nicht geprüft:** der Browser-Pfad (`pdf(<Report/>).toBlob()` unter Vite, Web Share, ZIP). Das beim Bau der App
-mit Playwright testen und Abweichungen hier nachtragen.
+**Browser-Pfad geprüft** (Phase 3 der App, Playwright + Chromium, Vite 7 `build` + `preview`, Handy-Viewport): siehe Abschnitt
+„Browser-Pfad (geprüft)“. **Weiterhin nicht geprüft:** Web Share (`navigator.share`, im Headless-Chromium nicht verfügbar) und iOS-Safari.
 
 ## Technik
 
@@ -27,6 +27,24 @@ mit Playwright testen und Abweichungen hier nachtragen.
 - Dateiname: `Verlaufsbericht_<Kürzel>_<von>_<bis>.pdf`, Standard **Kürzel statt Klarname**, Sonderzeichen entfernen.
 - Pro Kind eine Datei. Mehrere Kinder: eine Datei je Kind erzeugen und per `fflate` (`zipSync`) bündeln;
   einzelnes Kind: direkter Download (`<a download>`), wo verfügbar Web Share mit `navigator.canShare({ files })`.
+
+## Browser-Pfad (geprüft)
+
+- `const { pdf } = await import('@react-pdf/renderer')` + `await pdf(Report({ daten })).toBlob()` läuft unter Vite **ohne Polyfills**
+  (kein Buffer-/process-Shim nötig). Stichprobe (1-Seiten-Bericht, Sichtprüfung gegen den Node-Render): Schriften eingebettet (`pdffonts`), Umlaute korrekt
+  (`pdftotext`), Layout sieht gleich aus.
+- `pdf()` erwartet ein `<Document>`-Element. `createElement(Report, …)` liefert den Typ `FunctionComponentElement` und scheitert an
+  `tsc`; **`Report({ daten })` direkt aufrufen** (Komponente nutzt keine Hooks) ist typsicher.
+- Chunking: Renderer ≈ 1,2 MB (449 kB gzip) als eigener Chunk, `Report` ≈ 12 kB, `fonts.ts` ≈ 0,2 kB; der Start-Chunk bleibt frei davon,
+  solange alle drei nur per `import()` geladen werden. `registerFonts(FONT_URLS)` bei jedem Export aufzurufen ist unkritisch.
+- Schrift: `@fontsource/inter/files/inter-latin-{400,600,700}-normal.woff?url` wird zur gehashten URL im Build; react-pdf lädt sie
+  per `fetch` (gleiche Origin). Für Offline-Betrieb müssen `woff` im Service-Worker-Precache stehen (`globPatterns` mit `woff`).
+- Download per `<a download>` + `URL.createObjectURL` (Playwright: `page.waitForEvent('download')`) liefert eine gültige Datei (`%PDF-`).
+- ZIP mit `fflate.zipSync(…, { level: 0 })` liefert ein gültiges Archiv (`unzip -l`), Namen bei Kollision mit `_2` eindeutig machen.
+- Node-Skript mit `tsx` (außerhalb der `tsconfig`-`include`) braucht `import React from 'react'` (klassisches JSX), sonst „React is not defined“.
+- Text in verschachtelten `<Text>` (fett Präfix + normaler Text in einem Absatz) funktioniert inline.
+- `wrap={false}` auf Zeilenebene und ganze Fachbereiche als Block zusammenhalten (≤ 8 Zeilen) funktionierte in 1-, 2-, 4- und 6-seitigen
+  Beispielen ohne zerrissene Blöcke; sehr lange Notizen brechen innerhalb des Absatzes sauber um.
 
 ## Fallstricke (alle im Spike reproduziert)
 

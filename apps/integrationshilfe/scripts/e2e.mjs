@@ -107,9 +107,33 @@ try {
   await page.goto(base + '/mehr'); await shot('08-mehr')
   await page.goto(base + '/kinder'); await shot('09-kinder')
 
+  // ---- Phase 3: Bericht ----
+  await page.goto(base + '/bericht')
+  await page.getByText('1 · Kinder').waitFor()
+  for (const n of ['Mia', 'Ben']) { const b = page.getByRole('button', { name: n }).first(); if ((await b.getAttribute('aria-pressed')) !== 'true') await b.click() }
+  await page.getByRole('button', { name: 'Dieser Monat' }).click()
+  await page.getByTestId('vorschau-Mia').waitFor()
+  await page.getByTestId('vorschau-Ben').waitFor()
+  await shot('10-bericht')
+  await page.getByRole('button', { name: /2 PDF-Dateien erstellen/ }).click()
+  await page.getByTestId('ergebnisse').waitFor({ timeout: 60000 })
+  await shot('11-bericht-ergebnis')
+  const dl1 = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Herunterladen' }).first().click()
+  const d1 = await dl1
+  await d1.saveAs(`${OUT}/dl-1.pdf`)
+  const kopf = fs.readFileSync(`${OUT}/dl-1.pdf`).subarray(0, 5).toString()
+  ok(kopf === '%PDF-', 'Download ist ein PDF (' + d1.suggestedFilename() + ')')
+  ok(/^Verlaufsbericht_(Ben|Mia)_\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}\.pdf$/.test(d1.suggestedFilename()), 'Dateiname nach Schema')
+  const dl2 = page.waitForEvent('download')
+  await page.getByRole('button', { name: /ZIP/ }).click()
+  const d2 = await dl2
+  await d2.saveAs(`${OUT}/dl.zip`)
+  ok(fs.readFileSync(`${OUT}/dl.zip`).subarray(0, 2).toString() === 'PK', 'ZIP-Download (' + d2.suggestedFilename() + ')')
+
   ok(external.length === 0, 'keine externen Requests (' + external.join(', ') + ')')
   ok(errors.length === 0, 'keine Konsolenfehler ' + errors.join(' | '))
-  console.log('E2E PHASE 2 OK')
+  console.log('E2E OK')
 } catch (e) {
   console.error(e.message); await shot('fehler').catch(() => {}); process.exitCode = 1
 } finally {
