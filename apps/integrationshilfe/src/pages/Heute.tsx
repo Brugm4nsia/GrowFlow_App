@@ -9,6 +9,7 @@ import { ItemZeile } from '../components/erfassung/ItemZeile'
 import type { ErfassungsKontext } from '../components/erfassung/kontext'
 import { TagTab } from '../components/erfassung/TagTab'
 import { UmweltTab } from '../components/erfassung/UmweltTab'
+import { BackupHinweis } from '../components/BackupHinweis'
 import { Seite } from '../components/Seite'
 import { aendereEintrag, db, ladeEinstellungen, speichereEinstellungen } from '../domain/db'
 import { anzeigeDatum, heuteISO, istISO, langesDatum, tagVersetzen } from '../domain/datum'
@@ -24,7 +25,7 @@ function Skala() {
   const [offen, setOffen] = useState(false)
   return (
     <Box>
-      <Button variant="link" size="sm" onClick={() => setOffen(!offen)} aria-expanded={offen} minH="36px">
+      <Button variant="link" size="sm" onClick={() => setOffen(!offen)} aria-expanded={offen} minH="44px">
         {offen ? 'Skala ausblenden' : 'Skala 0–4 anzeigen'}
       </Button>
       <Collapse in={offen} animateOpacity>
@@ -149,6 +150,8 @@ export function Heute() {
   return (
     <Seite titel="Heute erfassen" pb="90px">
       <Stack spacing={3}>
+        <BackupHinweis />
+        {(einstellungen.demoKinder?.length ?? 0) > 0 ? <Text fontSize="sm" fontWeight={600} bg="bg.soft" borderRadius="md" px={3} py={2}>Demo-Modus: Beispieldaten mit fiktiven Kindern (Mehr → Demo-Daten entfernen).</Text> : null}
         <Flex align="center" gap={1}>
           <IconButton aria-label="Vorheriger Tag" icon={<IcPfeilL boxSize={6} />} variant="outline" h="52px" w="52px" onClick={() => setDatum(tagVersetzen(datum, -1))} />
           <Box position="relative" flex="1" textAlign="center">
@@ -161,7 +164,7 @@ export function Heute() {
           <IconButton aria-label="Nächster Tag" icon={<IcPfeilR boxSize={6} />} variant="outline" h="52px" w="52px" onClick={() => setDatum(tagVersetzen(datum, 1))} />
         </Flex>
         {!istHeute ? (
-          <Button variant="link" size="sm" alignSelf="center" onClick={() => setDatum(heuteISO())} minH="36px">Zu heute springen ({anzeigeDatum(heuteISO())})</Button>
+          <Button variant="link" size="sm" alignSelf="center" onClick={() => setDatum(heuteISO())} minH="44px">Zu heute springen ({anzeigeDatum(heuteISO())})</Button>
         ) : null}
 
         <Box role="group" aria-label="Kinder auswählen">

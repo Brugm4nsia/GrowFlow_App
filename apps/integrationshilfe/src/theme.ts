@@ -26,6 +26,8 @@ export const theme = extendTheme({
       'text.main': { default: '#1A202C', _dark: '#F1F5F9' },
       'text.mute': { default: '#4A5568', _dark: '#B6C2D2' },
       'line': { default: '#CBD5E0', _dark: '#3A4859' },
+      // Rahmen interaktiver Elemente (Eingabefelder, Stufen-Buttons): mindestens 3:1 Kontrast (WCAG 1.4.11).
+      'border.ui': { default: '#718096', _dark: '#8A9BB0' },
       'accent': { default: '#1E4E8C', _dark: '#8DB8E8' },
     },
   },
@@ -39,11 +41,12 @@ export const theme = extendTheme({
     Button: {
       baseStyle: { fontWeight: 600, borderRadius: 'lg', _focusVisible: { boxShadow: '0 0 0 3px #5E9BD1' } },
       defaultProps: { colorScheme: 'brand' },
-      sizes: { lg: { h: '52px', fontSize: 'md' } },
+      // Touch-Ziele: auch kleine Buttons mindestens 44 px.
+      sizes: { sm: { h: '44px', minW: '44px', fontSize: 'sm', px: 3 }, md: { h: '48px', minW: '48px' }, lg: { h: '52px', fontSize: 'md' } },
     },
-    Input: { defaultProps: { focusBorderColor: 'brand.400' }, sizes: { md: { field: { h: '48px', fontSize: '16px' } } } },
-    Textarea: { defaultProps: { focusBorderColor: 'brand.400' }, baseStyle: { fontSize: '16px' } },
-    Select: { defaultProps: { focusBorderColor: 'brand.400' }, sizes: { md: { field: { h: '48px', fontSize: '16px' } } } },
+    Input: { defaultProps: { focusBorderColor: 'brand.400' }, variants: { outline: { field: { borderColor: 'border.ui' } } }, sizes: { md: { field: { h: '48px', fontSize: '16px' } } } },
+    Textarea: { defaultProps: { focusBorderColor: 'brand.400' }, baseStyle: { fontSize: '16px' }, variants: { outline: { borderColor: 'border.ui' } } },
+    Select: { defaultProps: { focusBorderColor: 'brand.400' }, variants: { outline: { field: { borderColor: 'border.ui' } } }, sizes: { md: { field: { h: '48px', fontSize: '16px' } } } },
     Tabs: { defaultProps: { colorScheme: 'brand' } },
     Checkbox: { defaultProps: { colorScheme: 'brand' } },
   },

@@ -101,7 +101,8 @@ export interface Einstellungen {
   eigeneMassnahmen: string[]
   letztesBackup?: number
   backupErinnerungTage: number
-  demoDaten?: boolean
+  /** IDs der Demo-Kinder (fiktive Beispieldaten), solange geladen. */
+  demoKinder?: number[]
 }
 
 export interface Item {

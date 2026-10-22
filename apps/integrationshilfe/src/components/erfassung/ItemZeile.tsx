@@ -96,7 +96,7 @@ export function ItemZeile({ item, ctx, alleMassnahmen }: { item: Item; ctx: Erfa
               color={aktiv ? f.fg : 'text.main'}
               borderWidth={aktiv ? '3px' : '1px'}
               borderStyle={aktiv && uebernommen ? 'dashed' : 'solid'}
-              borderColor={aktiv ? 'text.main' : 'line'}
+              borderColor={aktiv ? 'text.main' : 'border.ui'}
               boxShadow={`inset 0 -7px 0 ${f.bg}`}
               _hover={{ bg: aktiv ? f.bg : 'bg.soft' }}
               _active={{ bg: f.bg }}
